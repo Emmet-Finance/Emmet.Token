@@ -30,3 +30,5 @@ Deployed contract: https://testnet.bscscan.com/address/0x11b8DF9c0906a44141F4724
 ```bash
 npx hardhat run --network bsc scripts/deploy.ts
 ```
+
+Deployed Contract: https://bscscan.com/token/0x6b30f76CecE9F92D27f0e9Ad78312E77709E74A5
