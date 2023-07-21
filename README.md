@@ -1,20 +1,15 @@
-# Sample Hardhat Project
+# Emmet.Token
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
+The official repository of the `Emmet.Finance`'s token.
 
-## Test Emmet.Token
-
-```shell
-REPORT_GAS=true npx hardhat test
-```
-
-## Flattenning Emmet.Token
+## Testing Emmet.Token
+Flattening Emmet.Token
 
 ```bash
 npx hardhat flatten contracts/Emmet.Token.sol > contracts/Flat.Emmet.Token.sol
 ```
 
-## Compile Emmet.Token
+## Compiling Emmet.Token
 
 1. Remove duplicated SPDX license identifiers
 2. Remove duplicated solidity versions 
@@ -23,7 +18,7 @@ npx hardhat flatten contracts/Emmet.Token.sol > contracts/Flat.Emmet.Token.sol
 npx hardhat compile
 ```
 
-## Deploy Emmet.Token
+## Deploying Emmet.Token
 
 ### Testnet BSC:
 ```bash
