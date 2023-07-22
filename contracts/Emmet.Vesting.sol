@@ -6,32 +6,32 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract EmmetVesting {
     enum Cliffs {
-        None,                   // 0
-        HalfYear,               // 1
-        Year                    // 2
+        None,               // 0
+        HalfYear,           // 1
+        Year                // 2
     }
 
     enum Vesting {
-        None,                   // 0
-        TwoYears,               // 1
-        FourYears               // 2
+        None,               // 0
+        TwoYears,           // 1
+        FourYears           // 2
     }
 
     struct Beneficiary {
-        uint128 allocated;      // Unit: base 18 Max ~3e38
-        uint128 withdrawn;      // Unit: base 18
-        uint256 start;          // block.timestamp
-        Cliffs  cliff;          // {0: Immediately, 1: halfYear, 2: 2*halfYear}
-        Vesting vesting;        // {0: Immediately, 1: TwoYears, 2: FourYears}
+        uint128 allocated;  // Unit: base 18 Max ~3e38
+        uint128 withdrawn;  // Unit: base 18
+        uint256 start;      // block.timestamp
+        Cliffs cliff;       // {0: Immediately, 1: halfYear, 2: onefYear}
+        Vesting vesting;    // {0: Immediately, 1: TwoYears, 2: FourYears}
     }
 
     address private admin;      // Contract admin
     address private CFO;        // Chief Financial Officer
-    IERC20  public emmetToken;  // Address of the token contract
+    IERC20 public emmetToken;   // Token contract address
 
-    uint64 public halfYear = 183 days;      // 15,811,200 seconds
-    uint64 public oneYear = halfYear * 2;   // 31,622,400 seconds
-    uint64 public twoYears = oneYear * 2;   // 63,244,800 seconds
+    uint64 public halfYear = 183 days;      // 15811200 seconds
+    uint64 public oneYear = halfYear * 2;   // 31622400 seconds
+    uint64 public twoYears = oneYear * 2;   // 63244800 seconds
 
     mapping(address => Beneficiary) private beneficiaries;
 
@@ -57,9 +57,9 @@ contract EmmetVesting {
         if (_token == address(0)) {
             revert AddressError(_token, "Wrong token address");
         }
-        if(_token.code.length == 0){
-            revert AddressError(_token, "Token address is not a contract");
-        }
+        // if(_token.code.length == 0){
+        //     revert AddressError(_token, "Token address is not a contract");
+        // }
         emmetToken = IERC20(_token);
         admin = msg.sender;
         CFO = _CFO;
@@ -69,23 +69,13 @@ contract EmmetVesting {
      *                    O N L Y    B E N E F I C I A R Y                    *
      **************************************************************************/
 
-    function allocated(address beneficiary)
-        external
-        view
-        onlyEligible
-        returns (uint128)
-    {
-        return beneficiaries[beneficiary].allocated;
+    function allocated() external view onlyEligible returns (uint128) {
+        return beneficiaries[msg.sender].allocated;
     }
 
-    function available(address beneficiary)
-        external
-        view
-        onlyEligible
-        returns (uint128)
-    {
-        uint256 elapsed = this.timeElapsed(beneficiary);
-        uint64 _cliff = this.cliff(beneficiary);
+    function available() external view onlyEligible returns (uint128) {
+        uint256 elapsed = this.timeElapsed();
+        uint64 _cliff = this.cliff();
 
         // Cliff has not matured, so nothing can be withdrawn
         if (elapsed <= _cliff) {
@@ -95,66 +85,37 @@ contract EmmetVesting {
         // 2. cliff was > 0, but matured
 
         // Checkng the vesting period
-        uint64 _vest = this.getVesting(beneficiary);
+        uint64 _vest = this.getVesting();
         // If vesting matured
         if (_vest <= (elapsed - _cliff)) {
-            return this.unwithdrawn(beneficiary);
+            return this.unwithdrawn();
         } // else, we're still in the vesting period
 
         // Calculate the vesting period
         uint64 _inVesting = _vest - uint64(elapsed) - _cliff;
         // Calculate the proportion to total
         uint128 proportion = _vest / _inVesting;
-        return
-            this.allocated(beneficiary) /
-            proportion -
-            this.withdrawn(beneficiary);
+        return this.allocated() / proportion - this.withdrawn();
     }
 
-    function cliff(address beneficiary)
-        external
-        view
-        onlyEligible
-        returns (uint64)
-    {
-        return uint64(beneficiaries[beneficiary].cliff) * halfYear;
+    function cliff() external view onlyEligible returns (uint64) {
+        return uint64(beneficiaries[msg.sender].cliff) * halfYear;
     }
 
-    function getVesting(address beneficiary)
-        external
-        view
-        onlyEligible
-        returns (uint64)
-    {
-        return uint64(beneficiaries[beneficiary].vesting) * twoYears;
+    function getVesting() external view onlyEligible returns (uint64) {
+        return uint64(beneficiaries[msg.sender].vesting) * twoYears;
     }
 
-    function timeElapsed(address beneficiary)
-        external
-        view
-        onlyEligible
-        returns (uint256)
-    {
-        return block.timestamp - beneficiaries[beneficiary].start;
+    function timeElapsed() external view onlyEligible returns (uint256) {
+        return block.timestamp - beneficiaries[msg.sender].start;
     }
 
-    function unwithdrawn(address beneficiary)
-        external
-        view
-        onlyEligible
-        returns (uint128)
-    {
-        return
-            beneficiaries[beneficiary].allocated - this.withdrawn(beneficiary);
+    function unwithdrawn() external view onlyEligible returns (uint128) {
+        return beneficiaries[msg.sender].allocated - this.withdrawn();
     }
 
-    function withdrawn(address beneficiary)
-        external
-        view
-        onlyEligible
-        returns (uint128)
-    {
-        return beneficiaries[beneficiary].withdrawn;
+    function withdrawn() external view onlyEligible returns (uint128) {
+        return beneficiaries[msg.sender].withdrawn;
     }
 
     function withdraw(uint128 _amount) external onlyEligible {
@@ -167,8 +128,8 @@ contract EmmetVesting {
             );
         }
 
-        // The beneficiary must have enough available tokens
-        uint128 _available = this.available(msg.sender);
+        // The msg.sender must have enough available tokens
+        uint128 _available = this.available();
         // Or the requested amount must be <= available
         if (_available == uint128(0) || _amount > _available) {
             revert AmountError(_amount, "Available now", _available);
@@ -182,13 +143,13 @@ contract EmmetVesting {
     }
 
     /**************************************************************************
-     *                             O N L Y    C F O                           *
+     *                              O N L Y    C F O                          *
      **************************************************************************/
     function addBeneficiary(
-        address receiver,   // Should not be address(0)
-        uint128 _amount,    // Should be > uint128(0)
-        Cliffs _cliff,      // {0: Immediately, 1: halfYear, 2: OneYear}
-        Vesting _vesting    // {0: Immediately, 1: TwoYears, 2: FourYears}
+        address receiver, // Should not be address(0)
+        uint128 _amount, // Should be > uint128(0)
+        Cliffs _cliff, // {0: Immediately, 1: halfYear, 2: OneYear}
+        Vesting _vesting // {0: Immediately, 1: TwoYears, 2: FourYears}
     ) external onlyCFO {
         // Input check 1:
         if (receiver == address(0)) {
@@ -198,7 +159,7 @@ contract EmmetVesting {
         if (_amount == uint128(0)) {
             revert AmountError(
                 _amount,
-                "Cannot add a beneficiary with amount",
+                "Cannot add a msg.sender with amount",
                 uint128(0)
             );
         }
@@ -218,7 +179,7 @@ contract EmmetVesting {
         // Transfer enough tokens to the vesting contract
         SafeERC20.safeTransfer(emmetToken, address(this), _amount);
 
-        // Set a new beneficiary
+        // Set a new msg.sender
         beneficiaries[receiver] = Beneficiary({
             allocated: _amount,
             withdrawn: uint128(0),
@@ -229,7 +190,7 @@ contract EmmetVesting {
     }
 
     /**************************************************************************
-     *                           O N L Y    A D M I N                         *
+     *                          O N L Y    A D M I N                          *
      **************************************************************************/
     function updateBeneficiary(
         address beneficiary,
