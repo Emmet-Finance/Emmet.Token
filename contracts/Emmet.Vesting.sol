@@ -68,13 +68,14 @@ contract EmmetVesting {
         return beneficiaries[msg.sender].allocated;
     }
 
+    // TODO: fix this function - not working properly
     function available() external view returns (uint128) {
         uint256 elapsed = this.timeElapsed();
         uint64 _cliff = this.cliff();
 
         // Cliff has not matured, so nothing can be withdrawn
-        if (elapsed <= _cliff) {
-            return uint128(0);
+        if (uint256(_cliff) > elapsed) {
+            return uint128(0); // Never gets here even if condition is true ?!
         } // else, two possible scenarios:
         // 1. cliff was initially 0
         // 2. cliff was > 0, but matured
