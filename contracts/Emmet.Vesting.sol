@@ -57,9 +57,9 @@ contract EmmetVesting {
         if (_token == address(0)) {
             revert AddressError(_token, "Wrong token address");
         }
-        // if(_token.code.length == 0){
-        //     revert AddressError(_token, "Token address is not a contract");
-        // }
+        if(_token.code.length == 0){
+            revert AddressError(_token, "Token address is not a contract");
+        }
         emmetToken = IERC20(_token);
         admin = msg.sender;
         CFO = _CFO;
