@@ -6,31 +6,32 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract EmmetVesting {
     enum Cliffs {
-        None,       // 0
-        HalfYear,   // 1
-        Year        // 2
+        None,                   // 0
+        HalfYear,               // 1
+        Year                    // 2
     }
 
     enum Vesting {
-        None,       // 0
-        TwoYears,   // 1
-        FourYears   // 2
+        None,                   // 0
+        TwoYears,               // 1
+        FourYears               // 2
     }
 
     struct Beneficiary {
-        uint128 allocated;  // Unit: base 18 Max ~3e38
-        uint128 withdrawn;  // Unit: base 18
-        uint256 start;      // block.timestamp
-        Cliffs cliff;       // {0: Immediately, 1: halfYear, 2: 2*halfYear}
-        Vesting vesting;    // {0: Immediately, 1: TwoYears, 2: FourYears}
+        uint128 allocated;      // Unit: base 18 Max ~3e38
+        uint128 withdrawn;      // Unit: base 18
+        uint256 start;          // block.timestamp
+        Cliffs  cliff;          // {0: Immediately, 1: halfYear, 2: 2*halfYear}
+        Vesting vesting;        // {0: Immediately, 1: TwoYears, 2: FourYears}
     }
 
-    address private admin;  // Contract admin
-    address private CFO;    // Chief Financial Officer
-    IERC20 public emmetToken;
-    uint64 public halfYear = 183 days;
-    uint64 public oneYear = halfYear * 2;
-    uint64 public twoYears = oneYear * 2;
+    address private admin;      // Contract admin
+    address private CFO;        // Chief Financial Officer
+    IERC20  public emmetToken;  // Address of the token contract
+
+    uint64 public halfYear = 183 days;      // 15,811,200 seconds
+    uint64 public oneYear = halfYear * 2;   // 31,622,400 seconds
+    uint64 public twoYears = oneYear * 2;   // 63,244,800 seconds
 
     mapping(address => Beneficiary) private beneficiaries;
 
@@ -56,23 +57,33 @@ contract EmmetVesting {
         if (_token == address(0)) {
             revert AddressError(_token, "Wrong token address");
         }
-        // if(_token.code.length == 0){
-        //     revert AddressError(_token, "Token address is not a contract");
-        // }
+        if(_token.code.length == 0){
+            revert AddressError(_token, "Token address is not a contract");
+        }
         emmetToken = IERC20(_token);
         admin = msg.sender;
         CFO = _CFO;
     }
 
     /**************************************************************************
-     *                P U B L I C = A N Y O N E  C A N  C A L L               *
+     *                    O N L Y    B E N E F I C I A R Y                    *
      **************************************************************************/
 
-    function allocated(address beneficiary) external view returns (uint128) {
+    function allocated(address beneficiary)
+        external
+        view
+        onlyEligible
+        returns (uint128)
+    {
         return beneficiaries[beneficiary].allocated;
     }
 
-    function available(address beneficiary) external view returns (uint128) {
+    function available(address beneficiary)
+        external
+        view
+        onlyEligible
+        returns (uint128)
+    {
         uint256 elapsed = this.timeElapsed(beneficiary);
         uint64 _cliff = this.cliff(beneficiary);
 
@@ -100,38 +111,51 @@ contract EmmetVesting {
             this.withdrawn(beneficiary);
     }
 
-    function cliff(address beneficiary) external view returns (uint64) {
+    function cliff(address beneficiary)
+        external
+        view
+        onlyEligible
+        returns (uint64)
+    {
         return uint64(beneficiaries[beneficiary].cliff) * halfYear;
     }
 
-    function getBeneficiary(address beneficiary)
+    function getVesting(address beneficiary)
         external
         view
-        returns (Beneficiary memory)
+        onlyEligible
+        returns (uint64)
     {
-        return beneficiaries[beneficiary];
-    }
-
-    function getVesting(address beneficiary) external view returns (uint64) {
         return uint64(beneficiaries[beneficiary].vesting) * twoYears;
     }
 
-    function timeElapsed(address beneficiary) external view returns (uint256) {
+    function timeElapsed(address beneficiary)
+        external
+        view
+        onlyEligible
+        returns (uint256)
+    {
         return block.timestamp - beneficiaries[beneficiary].start;
     }
 
-    function unwithdrawn(address beneficiary) external view returns (uint128) {
+    function unwithdrawn(address beneficiary)
+        external
+        view
+        onlyEligible
+        returns (uint128)
+    {
         return
             beneficiaries[beneficiary].allocated - this.withdrawn(beneficiary);
     }
 
-    function withdrawn(address beneficiary) external view returns (uint128) {
+    function withdrawn(address beneficiary)
+        external
+        view
+        onlyEligible
+        returns (uint128)
+    {
         return beneficiaries[beneficiary].withdrawn;
     }
-
-    /**************************************************************************
-     *                    O N L Y    B E N E F I C I A R Y                    *
-     **************************************************************************/
 
     function withdraw(uint128 _amount) external onlyEligible {
         // The contract must have enough funds
@@ -158,7 +182,7 @@ contract EmmetVesting {
     }
 
     /**************************************************************************
-     *                   O N L Y    C F O   F U N C T I O N S                 *
+     *                             O N L Y    C F O                           *
      **************************************************************************/
     function addBeneficiary(
         address receiver,   // Should not be address(0)
@@ -205,7 +229,7 @@ contract EmmetVesting {
     }
 
     /**************************************************************************
-     *               O N L Y    A D M I N   F U N C T I O N S                 *
+     *                           O N L Y    A D M I N                         *
      **************************************************************************/
     function updateBeneficiary(
         address beneficiary,
@@ -224,5 +248,14 @@ contract EmmetVesting {
 
     function updateAdmin(address newAdmin) external onlyAdmin {
         admin = newAdmin;
+    }
+
+    function getBeneficiary(address beneficiary)
+        external
+        view
+        onlyAdmin
+        returns (Beneficiary memory)
+    {
+        return beneficiaries[beneficiary];
     }
 }
