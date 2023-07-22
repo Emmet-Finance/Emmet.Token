@@ -136,7 +136,7 @@ contract EmmetVesting {
         }
 
         // Transfer the requested amount
-        SafeERC20.safeTransfer(emmetToken, msg.sender, _amount);
+        SafeERC20.safeTransferFrom(emmetToken, address(this), msg.sender, _amount);
 
         // Update withdrawal amount
         beneficiaries[msg.sender].withdrawn += _amount;
@@ -177,7 +177,7 @@ contract EmmetVesting {
             );
         }
         // Transfer enough tokens to the vesting contract
-        SafeERC20.safeTransfer(emmetToken, address(this), _amount);
+        SafeERC20.safeTransferFrom(emmetToken, msg.sender, address(this), _amount);
 
         // Set a new msg.sender
         beneficiaries[receiver] = Beneficiary({
