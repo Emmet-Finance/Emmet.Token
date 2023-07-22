@@ -48,9 +48,15 @@ describe("Emet.Vesting", function(){
             await token.connect(otherAccount).approve(await vesting.getAddress(), 250000000n * 10n**18n);
             // Add owner as beneficiary
             await vesting.connect(otherAccount).addBeneficiary(owner.address, 250000000n * 10n**18n,1n,1n);
-            // Check the beneficiary was added
+            // Check the beneficiary was added & 250M allocated
             expect((await vesting.connect(owner).getBeneficiary(owner.address)).allocated)
             .to.equal(250000000000000000000000000n);
+            // Check allocated()
+            expect(await vesting.connect(owner).allocated()).to.equal(250000000000000000000000000n);
+            // Check available()
+            expect(await vesting.connect(owner).available()).to.equal(0n);
+            // Check cliff()
+            expect(await vesting.connect(owner).cliff()).to.equal(15811200n);
         });
 
         

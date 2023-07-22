@@ -48,11 +48,6 @@ contract EmmetVesting {
         _;
     }
 
-    modifier onlyEligible() {
-        require(beneficiaries[msg.sender].allocated > 0, "Unauthorised call.");
-        _;
-    }
-
     constructor(address _token, address _CFO) {
         if (_token == address(0)) {
             revert AddressError(_token, "Wrong token address");
@@ -69,11 +64,11 @@ contract EmmetVesting {
      *                    O N L Y    B E N E F I C I A R Y                    *
      **************************************************************************/
 
-    function allocated() external view onlyEligible returns (uint128) {
+    function allocated() external view returns (uint128) {
         return beneficiaries[msg.sender].allocated;
     }
 
-    function available() external view onlyEligible returns (uint128) {
+    function available() external view returns (uint128) {
         uint256 elapsed = this.timeElapsed();
         uint64 _cliff = this.cliff();
 
@@ -98,27 +93,27 @@ contract EmmetVesting {
         return this.allocated() / proportion - this.withdrawn();
     }
 
-    function cliff() external view onlyEligible returns (uint64) {
+    function cliff() external view returns (uint64) {
         return uint64(beneficiaries[msg.sender].cliff) * halfYear;
     }
 
-    function getVesting() external view onlyEligible returns (uint64) {
+    function getVesting() external view returns (uint64) {
         return uint64(beneficiaries[msg.sender].vesting) * twoYears;
     }
 
-    function timeElapsed() external view onlyEligible returns (uint256) {
+    function timeElapsed() external view returns (uint256) {
         return block.timestamp - beneficiaries[msg.sender].start;
     }
 
-    function unwithdrawn() external view onlyEligible returns (uint128) {
+    function unwithdrawn() external view returns (uint128) {
         return beneficiaries[msg.sender].allocated - this.withdrawn();
     }
 
-    function withdrawn() external view onlyEligible returns (uint128) {
+    function withdrawn() external view returns (uint128) {
         return beneficiaries[msg.sender].withdrawn;
     }
 
-    function withdraw(uint128 _amount) external onlyEligible {
+    function withdraw(uint128 _amount) external {
         // The contract must have enough funds
         if (emmetToken.balanceOf(address(this)) < _amount) {
             revert AmountError(
