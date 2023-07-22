@@ -152,6 +152,9 @@ contract EmmetVesting {
 
         // Transfer the requested amount
         SafeERC20.safeTransfer(emmetToken, msg.sender, _amount);
+
+        // Update withdrawal amount
+        beneficiaries[msg.sender].withdrawn += _amount;
     }
 
     /**************************************************************************
