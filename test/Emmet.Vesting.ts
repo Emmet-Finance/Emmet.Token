@@ -31,8 +31,8 @@ describe("Emet.Vesting", function(){
 
         it("Should Deploy", async function() {
             const { token, vesting } = await loadFixture(deployContracts);
-            // The address of `emmetToken` must equal token.getAddress()
-            expect(await vesting.emmetToken()).to.equal(await token.getAddress());
+            // The address of `Token` must equal token.getAddress()
+            expect(await vesting.Token()).to.equal(await token.getAddress());
             // halfYear muts equal 15811200 seconds
             expect(await vesting.halfYear()).to.equal(15811200n);
         });
