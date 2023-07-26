@@ -3,6 +3,11 @@ import {
 } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { exitCode } from "process";
+
+// async function sleep(ms: number) {
+//     return await new Promise( resolve => setTimeout(resolve, ms) );
+// }
 
 describe("Emet.Vesting", function(){
 
@@ -106,15 +111,24 @@ describe("Emet.Vesting", function(){
                 cliff:0n, // This was changed to enable withdraw
                 vesting:0n // This was changed to enable withdraw
             });
+            const beneficiary = await vesting.connect(owner).getBeneficiary(owner.address);
+            expect(beneficiary).to.deep.equal([ 250000000000000000000000000n, 0n, 0n, 0n, 0n ]);
             // Now available() should equal allocated()
             const allocated = await vesting.connect(owner).allocated();
             expect(allocated).to.equal(250000000000000000000000000n);
+            expect(await vesting.connect(owner).unwithdrawn()).to.equal(allocated);
             const elapsed = await vesting.connect(owner).timeElapsed();
-            console.log("Time elapsed", elapsed)
+            console.log("Elapsed", elapsed)
             const cliff = await vesting.connect(owner).cliff();
             console.log("Cliff:", cliff);
-            // Now available() should equal allocated()
-            expect(await vesting.connect(owner).available()).to.equal(allocated);
+            const vest = await vesting.connect(owner).getVesting();
+            console.log("Vesting", vest)
+            console.log("vest <= (elapsed - cliff)", vest <= (elapsed - cliff));
+            const unwithdrawn = await vesting.connect(owner).unwithdrawn();
+            console.log("Unwithdrawn:", unwithdrawn)
+            expect(unwithdrawn).to.equal(allocated)
+            // Now available() should equal allocated() - TODO: check why 0n & fix
+            expect(await vesting.connect(owner).available()).to.equal(allocated); // ERROR!!!
         });
     });
 });

@@ -6,15 +6,15 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract EmmetVesting {
     enum Cliffs {
-        None,               // 0
-        HalfYear,           // 1
-        Year                // 2
+        None,       // 0
+        HalfYear,   // 1
+        Year        // 2
     }
 
     enum Vesting {
-        None,               // 0
-        TwoYears,           // 1
-        FourYears           // 2
+        None,       // 0
+        TwoYears,   // 1
+        FourYears   // 2
     }
 
     struct Beneficiary {
@@ -52,7 +52,7 @@ contract EmmetVesting {
         if (_token == address(0)) {
             revert AddressError(_token, "Wrong token address");
         }
-        if(_token.code.length == 0){
+        if (_token.code.length == 0) {
             revert AddressError(_token, "Token address is not a contract");
         }
         emmetToken = IERC20(_token);
@@ -70,47 +70,71 @@ contract EmmetVesting {
 
     // TODO: fix this function - not working properly
     function available() external view returns (uint128) {
-        uint256 elapsed = this.timeElapsed();
-        uint64 _cliff = this.cliff();
+        // Time from start till now in past seconds
+        uint256 elapsed = block.timestamp - beneficiaries[msg.sender].start;
+        // The lock period when tokens cannot be released
+        uint64 _cliff = uint64(beneficiaries[msg.sender].cliff) * halfYear;
+        // The period of linear token release
+        uint64 _vest = uint64(beneficiaries[msg.sender].vesting) * twoYears;
 
         // Cliff has not matured, so nothing can be withdrawn
-        if (uint256(_cliff) > elapsed) {
-            return uint128(0); // Never gets here even if condition is true ?!
-        } // else, two possible scenarios:
-        // 1. cliff was initially 0
-        // 2. cliff was > 0, but matured
+        if (_cliff > uint64(elapsed)) {
+            return uint128(0);
+            // otherwise, two possible scenarios for cliff:
+            // 1. cliff was initially 0
+            // 2. cliff was > 0, but matured
+            // Check whether vesting matured
+        }
 
-        // Checkng the vesting period
-        uint64 _vest = this.getVesting();
-        // If vesting matured
-        if (_vest <= (elapsed - _cliff)) {
-            return this.unwithdrawn();
-        } // else, we're still in the vesting period
+        // The time elapsed after cliff
+        uint64 _elapsedMinusCliff;
 
-        // Calculate the vesting period
-        uint64 _inVesting = _vest - uint64(elapsed) - _cliff;
-        // Calculate the proportion to total
-        uint128 proportion = _vest / _inVesting;
-        return this.allocated() / proportion - this.withdrawn();
+        unchecked {
+            // Underflow protection
+            _elapsedMinusCliff = uint64(elapsed) - _cliff;
+            require(_elapsedMinusCliff <= uint64(elapsed), "uint64 Underflow");
+        }
+
+        if (_vest < uint64(elapsed) - _cliff) {
+            // If matured, return allocation - withdrawn
+            return
+                beneficiaries[msg.sender].allocated -
+                beneficiaries[msg.sender].withdrawn;
+        } else {
+            // we're still in the vesting period
+            // Calculate the vesting period
+            uint64 _inVesting = _vest - _elapsedMinusCliff;
+            // Calculate the proportion to total
+            uint128 proportion = _vest / _inVesting;
+            return
+                beneficiaries[msg.sender].allocated /
+                proportion -
+                beneficiaries[msg.sender].withdrawn;
+        }
     }
 
     function cliff() external view returns (uint64) {
+        // The period of token lock length in seconds
         return uint64(beneficiaries[msg.sender].cliff) * halfYear;
     }
 
     function getVesting() external view returns (uint64) {
+        // The period of linear token release length in seconds
         return uint64(beneficiaries[msg.sender].vesting) * twoYears;
     }
 
     function timeElapsed() external view returns (uint256) {
+        // Time from start till now in seconds
         return block.timestamp - beneficiaries[msg.sender].start;
     }
 
     function unwithdrawn() external view returns (uint128) {
+        // Full amount left to withdraw regardless of locks & schedules
         return beneficiaries[msg.sender].allocated - this.withdrawn();
     }
 
     function withdrawn() external view returns (uint128) {
+        // Amount of received tokens with 18 decimals
         return beneficiaries[msg.sender].withdrawn;
     }
 
@@ -132,7 +156,12 @@ contract EmmetVesting {
         }
 
         // Transfer the requested amount
-        SafeERC20.safeTransferFrom(emmetToken, address(this), msg.sender, _amount);
+        SafeERC20.safeTransferFrom(
+            emmetToken,
+            address(this),
+            msg.sender,
+            _amount
+        );
 
         // Update withdrawal amount
         beneficiaries[msg.sender].withdrawn += _amount;
@@ -173,7 +202,12 @@ contract EmmetVesting {
             );
         }
         // Transfer enough tokens to the vesting contract
-        SafeERC20.safeTransferFrom(emmetToken, msg.sender, address(this), _amount);
+        SafeERC20.safeTransferFrom(
+            emmetToken,
+            msg.sender,
+            address(this),
+            _amount
+        );
 
         // Set a new msg.sender
         beneficiaries[receiver] = Beneficiary({
@@ -207,12 +241,9 @@ contract EmmetVesting {
         admin = newAdmin;
     }
 
-    function getBeneficiary(address beneficiary)
-        external
-        view
-        onlyAdmin
-        returns (Beneficiary memory)
-    {
+    function getBeneficiary(
+        address beneficiary
+    ) external view onlyAdmin returns (Beneficiary memory) {
         return beneficiaries[beneficiary];
     }
 }
