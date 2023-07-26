@@ -19,6 +19,9 @@ contract VestingRoles is TokenVesting {
     }
 
     constructor(address token_, address CFO_) TokenVesting(token_) {
+        if(CFO_ == address(0)){
+            revert AddressError(CFO_, "Is not a valid CFO address.");
+        }
         admin = msg.sender;
         CFO = CFO_;
     }
